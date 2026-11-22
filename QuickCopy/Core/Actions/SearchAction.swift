@@ -10,7 +10,7 @@ final class SearchAction: QuickAction {
     let id = "search"
     let title = "搜索"
     let systemImageName = "magnifyingglass"
-    /// 和剪切/复制/粘贴/删除之间画一条分隔线，与 PopClip 的分组方式一致。
+    /// 和剪切/复制/粘贴/删除之间画一条分隔线，作为额外入口单独分组。
     let visualGroup = 1
     /// 额外入口只显示图标，悬停时仍会显示“搜索”。
     let showsTitle = false

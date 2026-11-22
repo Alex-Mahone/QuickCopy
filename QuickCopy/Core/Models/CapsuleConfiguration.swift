@@ -8,8 +8,8 @@ enum CapsuleMaterialStyle: String, CaseIterable, Identifiable, Codable {
     case liquidGlass
     /// 系统标准材质的磨砂效果。
     case regular
-    /// 固定深色表面 + 白色前景，仿 PopClip 的暗色样式。
-    case popClip
+    /// 固定深色表面 + 白色前景，不随系统外观变化。
+    case dark
     /// 固定浅色表面 + 黑色前景，类似白底黑字的明亮样式。
     case light
 
@@ -21,7 +21,7 @@ enum CapsuleMaterialStyle: String, CaseIterable, Identifiable, Codable {
             return "玻璃"
         case .regular:
             return "磨砂"
-        case .popClip:
+        case .dark:
             return "暗色"
         case .light:
             return "明亮"
@@ -30,7 +30,7 @@ enum CapsuleMaterialStyle: String, CaseIterable, Identifiable, Codable {
 
     /// 固定深色样式，不随系统亮/暗模式切换。
     var isDarkSurface: Bool {
-        self == .popClip
+        self == .dark
     }
 
     /// 固定浅色样式，不随系统亮/暗模式切换。
@@ -39,12 +39,12 @@ enum CapsuleMaterialStyle: String, CaseIterable, Identifiable, Codable {
     }
 
     /// 非 Liquid Glass 材质，或旧系统上的回退材质。
-    /// `.popClip` / `.light` 不使用这里的 Material，由 UI 层绘制纯色底。
+    /// `.dark` / `.light` 不使用这里的 Material，由 UI 层绘制纯色底。
     var material: Material {
         switch self {
         case .liquidGlass, .regular:
             return .regularMaterial
-        case .popClip, .light:
+        case .dark, .light:
             return .ultraThinMaterial
         }
     }

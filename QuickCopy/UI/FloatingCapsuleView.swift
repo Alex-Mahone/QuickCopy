@@ -56,7 +56,7 @@ struct FloatingCapsuleView: View {
 
     private var dividerColor: Color {
         switch configuration.materialStyle {
-        case .popClip:
+        case .dark:
             return Color.white.opacity(0.18)
         case .light:
             return Color.black.opacity(0.10)
@@ -67,7 +67,7 @@ struct FloatingCapsuleView: View {
 
     private var pressHighlight: Color {
         switch configuration.materialStyle {
-        case .popClip:
+        case .dark:
             return .white
         case .light:
             return .black
@@ -122,7 +122,7 @@ struct FloatingCapsuleView: View {
         if succeeded { return .green }
         if failed { return .red }
         switch configuration.materialStyle {
-        case .popClip:
+        case .dark:
             return Color.white.opacity(isBusy ? 0.45 : 0.92)
         case .light:
             return Color.black.opacity(isBusy ? 0.35 : 0.82)

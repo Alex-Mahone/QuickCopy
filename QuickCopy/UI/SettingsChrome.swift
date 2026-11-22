@@ -591,7 +591,7 @@ struct MaterialChoiceTile: View {
     private var swatchBorder: Color {
         style == .light
             ? Color.black.opacity(0.14)
-            : Color.white.opacity(style == .popClip ? 0.18 : 0.24)
+            : Color.white.opacity(style == .dark ? 0.18 : 0.24)
     }
 
     @ViewBuilder
@@ -628,7 +628,7 @@ struct MaterialChoiceTile: View {
                     .fill(.regularMaterial)
             }
             .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-        case .popClip:
+        case .dark:
             RoundedRectangle(cornerRadius: 7, style: .continuous)
                 .fill(Color(red: 0.07, green: 0.07, blue: 0.08))
         case .light:
