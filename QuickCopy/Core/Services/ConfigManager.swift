@@ -292,6 +292,9 @@ final class ConfigManager: ObservableObject {
             return style
         }
         switch rawValue {
+        case "popClip":
+            // 旧版本把“暗色”存成 popClip，重命名后需要迁移，否则会悄悄退回玻璃。
+            return .dark
         case "ultraThin", "thin", "thick":
             return .regular
         default:

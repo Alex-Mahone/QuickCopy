@@ -30,6 +30,10 @@ struct SelectionContext: Equatable {
     /// 选区所在网页的 URL（仅 http/https）。用于网站排除列表；
     /// 普通桌面应用没有网页地址时为 nil。
     let pageURL: URL?
+    /// 这次选区是否来自用户刚完成的拖选 / 多击 / Shift 点击。
+    /// 胶囊用它区分“用户主动划选”和“点击外部后 AX 重复上报的旧选区”，
+    /// 避免把真实的重新划选误当成重复事件抑制掉。
+    let isDeliberateGesture: Bool
 
     init(text: String,
          bounds: CGRect,
@@ -39,7 +43,8 @@ struct SelectionContext: Equatable {
          sourceProcessIdentifier: Int32? = nil,
          isEditable: Bool = false,
          pointerLocation: CGPoint? = nil,
-         pageURL: URL? = nil) {
+         pageURL: URL? = nil,
+         isDeliberateGesture: Bool = false) {
         self.text = text
         self.bounds = bounds
         self.source = source
@@ -49,6 +54,7 @@ struct SelectionContext: Equatable {
         self.isEditable = isEditable
         self.pointerLocation = pointerLocation
         self.pageURL = pageURL
+        self.isDeliberateGesture = isDeliberateGesture
     }
 
     /// 用于去重：同样的文字 + 同样的屏幕位置视为同一次选区。

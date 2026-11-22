@@ -91,7 +91,10 @@ final class CapsuleController {
         guard !actions.isEmpty else { return }
 
         // 刚刚因点击外部/复制完成而关闭的同一选区，短时间内不再弹。
-        if context.signature == suppressSignature,
+        // 但如果这次是用户主动拖选 / 多击产生的选区，就必须放行：
+        // 否则点回正文后立刻重选同一句话，胶囊会完全不出现。
+        if !context.isDeliberateGesture,
+           context.signature == suppressSignature,
            Date().timeIntervalSince(suppressSince) < Self.suppressWindow {
             return
         }

@@ -12,7 +12,8 @@ struct CapsuleFeedback: Equatable {
 /// 点击按钮只把动作原样交给 `onPerform`，真正的执行由上层协调器完成。
 struct FloatingCapsuleView: View {
     /// 给 SwiftUI 阴影预留的透明边距；窗口层定位时会扣除这部分。
-    static let shadowPadding: CGFloat = 10
+    /// 需要略大于阴影的模糊半径 + 垂直偏移，否则阴影会在窗口边缘被硬裁切。
+    static let shadowPadding: CGFloat = 8
 
     let actions: [QuickAction]
     /// 选区位置由窗口层用于定位，传入视图便于后续做箭头、朝向等纯视觉扩展。
@@ -149,22 +150,22 @@ private struct CapsuleSurfaceModifier: ViewModifier {
             content
                 .background(shape.fill(Color(red: 0.07, green: 0.07, blue: 0.08).opacity(0.94)))
                 .overlay(shape.strokeBorder(Color.white.opacity(0.15), lineWidth: 1))
-                .shadow(color: .black.opacity(0.30), radius: 10, x: 0, y: 3)
+                .shadow(color: .black.opacity(0.20), radius: 5, x: 0, y: 2)
         } else if configuration.materialStyle.isLightSurface {
             // 明亮：近乎不透明的白底 + 黑色内容，固定不随系统外观变化。
             content
                 .background(shape.fill(Color(red: 0.985, green: 0.985, blue: 0.99).opacity(0.97)))
                 .overlay(shape.strokeBorder(Color.black.opacity(0.12), lineWidth: 1))
-                .shadow(color: .black.opacity(0.24), radius: 10, x: 0, y: 3)
+                .shadow(color: .black.opacity(0.15), radius: 5, x: 0, y: 2)
         } else if #available(macOS 26.0, *), configuration.materialStyle == .liquidGlass {
             content
                 .glassEffect(.regular.interactive(), in: shape)
-                .shadow(color: .black.opacity(0.16), radius: 9, x: 0, y: 3)
+                .shadow(color: .black.opacity(0.10), radius: 5, x: 0, y: 2)
         } else {
             content
                 .background(shape.fill(configuration.materialStyle.material))
                 .overlay(shape.strokeBorder(Color.primary.opacity(0.10), lineWidth: 1))
-                .shadow(color: .black.opacity(0.22), radius: 9, x: 0, y: 3)
+                .shadow(color: .black.opacity(0.15), radius: 5, x: 0, y: 2)
         }
     }
 }

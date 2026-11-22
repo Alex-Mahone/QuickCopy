@@ -56,6 +56,9 @@ final class AccessibilityService: ObservableObject {
     private var keyboardFinishWork: DispatchWorkItem?
     /// 鼠标抬起后如果目标 App 还没提交新选区，短暂重试，而不是固定等待。
     private var mouseUpReadAttempt = 0
+    /// 本次鼠标手势是否是明确的划选（拖动、多击、Shift 点击）。
+    /// 用于告诉胶囊：这是用户主动选的，不要被“刚关闭不再弹”的抑制挡住。
+    private var mouseUpWasDeliberate = false
 
     deinit {
         stop()
@@ -218,6 +221,7 @@ final class AccessibilityService: ObservableObject {
             mouseDownLocation = NSEvent.mouseLocation
             isDraggingSelection = false
             lastSource = .mouse
+            mouseUpWasDeliberate = false
             // 新手势允许再次显示同一段选区（例如 ESC 关闭后重新双击同一句话）。
             lastEmittedSignature = nil
 
@@ -241,6 +245,7 @@ final class AccessibilityService: ObservableObject {
 
             if wasDragging || isMultiClick || isShiftClick {
                 lastSource = .mouse
+                mouseUpWasDeliberate = true
                 // 松手立刻读：先不人为等待，避免每轮都固定多出 10ms。
                 // 某些 App 尚未提交新选区时，读取会返回空并在下方重试。
                 scheduleRead(after: 0)
@@ -283,7 +288,8 @@ final class AccessibilityService: ObservableObject {
         }
 
         // 连续敲方向键时，新的 keyDown 会取消这次收尾，不会每按一下弹一次。
-        scheduleKeyboardFinish(after: 0.12)
+        // 60ms 足够让持续按键合并，又不至于让单次选字等上半秒。
+        scheduleKeyboardFinish(after: 0.06)
     }
 
     private func scheduleKeyboardFinish(after delay: TimeInterval) {
@@ -293,7 +299,7 @@ final class AccessibilityService: ObservableObject {
             self.keyboardFinishWork = nil
             self.isKeyboardSelecting = false
             self.lastSource = .keyboard
-            self.scheduleRead(after: 0.03)
+            self.scheduleRead(after: 0.01)
         }
         keyboardFinishWork = work
         DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
@@ -459,11 +465,12 @@ final class AccessibilityService: ObservableObject {
         }
         if isKeyboardSelecting { return }
 
-        // 某些 App 一次选区变化会连发多次通知，做 30ms 合并后立即读取。
+        // 某些 App 一次选区变化会连发多次通知：只做 10ms 合并，
+        // 合并后立即读取。之前是 30ms + 30ms，白白多等约 50ms。
         let now = Date()
-        guard now.timeIntervalSince(lastAXNotificationAt) >= 0.03 else { return }
+        guard now.timeIntervalSince(lastAXNotificationAt) >= 0.01 else { return }
         lastAXNotificationAt = now
-        scheduleRead(after: 0.03)
+        scheduleRead(after: 0.01)
     }
 
     private func handleApplicationActivation(_ note: Notification) {
@@ -573,13 +580,13 @@ final class AccessibilityService: ObservableObject {
 
     private func makeContext(from selection: SelectionSnapshot,
                              frontApp: NSRunningApplication) -> SelectionContext? {
-        // 优先用选中范围的精确矩形；部分 App 不提供时，
-        // 鼠标选区退回鼠标抬起位置（比整个输入框的 frame 更接近文字）。
+        // 优先用选中范围的精确矩形；部分 App 不提供时，鼠标选区走
+        // mouseFallbackBounds，避免胶囊底边压在选中的文字上。
         let bounds: CGRect
         if let axRect = selection.axBounds {
             bounds = cocoaRect(fromAXRect: axRect)
         } else if lastSource == .mouse {
-            bounds = mouseAnchor()
+            bounds = mouseFallbackBounds(for: selection.element)
         } else if let frame = elementFrame(selection.element) {
             bounds = cocoaRect(fromAXRect: frame)
         } else {
@@ -599,7 +606,8 @@ final class AccessibilityService: ObservableObject {
             sourceProcessIdentifier: frontApp.processIdentifier,
             isEditable: selection.isEditable,
             pointerLocation: lastSource == .mouse ? lastMouseUpLocation : nil,
-            pageURL: selection.pageURL
+            pageURL: selection.pageURL,
+            isDeliberateGesture: lastSource == .mouse && mouseUpWasDeliberate
         )
     }
 
@@ -808,6 +816,20 @@ final class AccessibilityService: ObservableObject {
         CGRect(origin: NSEvent.mouseLocation, size: .zero)
     }
 
+    /// 拿不到 AX 选区矩形时的鼠标兜底。
+    ///
+    /// 不能直接用鼠标点：胶囊底边会正好落在光标高度上，压住选中的文字
+    /// （输入框里尤其明显）。单行控件以控件上沿为基准；其余情况按一行
+    /// 文字约 20pt 估算，把胶囊底边抬到光标上方。
+    private func mouseFallbackBounds(for element: AXUIElement) -> CGRect {
+        let pointer = lastMouseUpLocation ?? NSEvent.mouseLocation
+        if let frame = elementFrame(element), frame.height > 0, frame.height <= 44 {
+            let top = cocoaRect(fromAXRect: frame).maxY
+            return CGRect(x: pointer.x, y: top, width: 0, height: 0)
+        }
+        return CGRect(x: pointer.x, y: pointer.y + 9, width: 0, height: 0)
+    }
+
     /// AX 的屏幕矩形以主屏左上角为原点；Cocoa 以主屏左下角为原点。
     private func cocoaRect(fromAXRect rect: CGRect) -> CGRect {
         let primary = NSScreen.screens.first { $0.frame.origin == .zero } ?? NSScreen.screens.first
@@ -851,30 +873,47 @@ final class AccessibilityService: ObservableObject {
         return value as? Bool
     }
 
+    /// 真正的文本输入角色。浏览器/Electron 有时会给普通容器（AXWebArea 的父级）
+    /// 报 `AXSelectedText` 可写，只凭 settable 会把网页正文误判成可编辑。
+    private static let editableRoles: Set<String> = [
+        "AXTextField",
+        "AXTextArea",
+        "AXComboBox",
+        "AXSearchField"
+    ]
+
     /// 选区所在元素是否真正可编辑。
     ///
     /// 只看控件类型不够：网页正文、预览文档也是文本控件，但不能剪切。
-    /// 这里同时检查 `AXEditable` 和 `AXSelectedText` 是否可写，
-    /// 两者任一为真才认为可以安全展示剪切/粘贴。
+    /// 这里同时检查 `AXEditable` 和 `AXSelectedText` 是否可写：
+    /// - 选区元素自身可写，或属于文本输入角色，才认为可编辑；
+    /// - 祖先只接受 `AXEditable == true`，不再采信祖先的 settable，
+    ///   否则 Chromium 的容器会让静态正文错误地出现剪切/粘贴。
     private func isEditableElement(_ element: AXUIElement) -> Bool {
         var current: AXUIElement? = element
-        for _ in 0..<5 {
-            guard let candidate = current else { break }
+        var depth = 0
+        while let candidate = current, depth < 3 {
+            let role = stringAttribute(candidate, kAXRoleAttribute) ?? ""
 
             if boolAttribute(candidate, "AXEditable") == true {
                 return true
             }
 
             var settable = DarwinBoolean(false)
-            if AXUIElementIsAttributeSettable(
+            let isSettable = AXUIElementIsAttributeSettable(
                 candidate,
                 kAXSelectedTextAttribute as CFString,
                 &settable
-            ) == .success, settable.boolValue {
+            ) == .success && settable.boolValue
+
+            let roleTrustsSettable = Self.editableRoles.contains(role)
+                || (depth == 0 && role != "AXWebArea" && role != "AXStaticText")
+            if isSettable, roleTrustsSettable {
                 return true
             }
 
             current = elementAttribute(candidate, kAXParentAttribute)
+            depth += 1
         }
         return false
     }
