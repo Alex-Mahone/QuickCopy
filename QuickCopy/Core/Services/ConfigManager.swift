@@ -180,7 +180,9 @@ final class ConfigManager: ObservableObject {
     /// 返回 false 表示无法识别出域名。
     @discardableResult
     func addExcludedSite(_ raw: String) -> Bool {
-        guard let host = Self.normalizedHost(Self.hostCandidate(from: raw)) else {
+        guard let candidate = Self.hostCandidate(from: raw),
+              let url = URL(string: candidate),
+              let host = Self.normalizedHost(url.host) else {
             return false
         }
         guard !excludedSiteHosts.contains(host) else { return true }
