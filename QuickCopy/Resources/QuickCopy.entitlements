@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!-- 仅本地分发，不启用 App Sandbox。
+     辅助功能 API、全局事件监听和跨 App 选区读取需要非沙盒环境。 -->
+<dict/>
+</plist>

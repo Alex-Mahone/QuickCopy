@@ -1,0 +1,33 @@
+# macOS 系统文件
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Xcode 用户状态（含断点、窗口布局、方案偏好）
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+
+# 构建产物（build.sh 输出，含 .app / 图标集 / 截图）
+build/
+DerivedData/
+*.hmap
+*.ipa
+*.dSYM/
+*.dSYM.zip
+
+# 签名私钥与证书（由 tools/make_signing_cert.sh 生成在外部目录，
+# 这里防止误把导出的私钥文件提交进仓库）
+*.p12
+*.pem
+*.key
+*.cer
+*.mobileprovision
+signing/
+
+# 编辑器 / 临时文件
+*.swp
+*~
+.idea/
+.vscode/
